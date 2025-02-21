@@ -4,7 +4,7 @@ local crypt = require "client.crypt"
 
 local loginip = "127.0.0.1"
 local loginport = 8001
-local token = "test:100001" --account:serverId
+local token = "test:game1" --account:serverId
 
 local function writeline(fd, text)
 	socket.send(fd, text .. "\n")

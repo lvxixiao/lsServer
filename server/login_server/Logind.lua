@@ -1,4 +1,4 @@
-local login = require "snax.loginserver"
+local login = require "LoginGate"
 local crypt = require "skynet.crypt"
 local skynet = require "skynet"
 
@@ -16,30 +16,24 @@ function server.auth_handler(token)
 	print("auth_handler", token)
 	local tokenInfo = string.split(token, ":")
 	local account = tokenInfo[1]
-	local serverId = tokenInfo[2]
-    if not account or not serverId then
-		error("auth_handler token err, not account or serverId")
+	local selectNode = tokenInfo[2]
+    if not account then
+		error("auth_handler token err, not account")
 	end
-	-- todo: zf
-	return 1, 1
+
+	local ret, err = SM.AccountMgr.req.Auth(account, selectNode)
+	if ret then
+		return serverId, account
+	else
+		error(err)
+	end
 end
 
 --选择登录点
 function server.login_handler(server, uid, secret)
 	print(string.format("%s:%s is login, secret is %s", uid, server, crypt.hexencode(secret)))
-	-- local gameserver = assert(server_list[server], "Unknown server")
-	-- -- only one can login, because disallow multilogin
-	-- local last = user_online[uid]
-	-- if last then
-	-- 	skynet.call(last.address, "lua", "kick", uid, last.subid)
-	-- end
-	-- if user_online[uid] then
-	-- 	error(string.format("user %s is already online", uid))
-	-- end
-
-	-- local subid = tostring(skynet.call(gameserver, "lua", "login", uid, secret))
-	-- user_online[uid] = { address = gameserver, subid = subid , server = server}
-	-- return subid
+	
+	-- todo: zf 这里通知游服 secret 和 uid,同时返回游服的 ip、port
 	return 111
 end
 
