@@ -38,6 +38,36 @@ function table.dump(t,iterDepth)
     return "{\n" .._dump(t,"  ",name, 1) .. "\n}"
 end
 
+--- 浅拷贝
+local function simpleCopy(node)
+	if type(node) ~= "table" then return node end
+
+	local newtable = {}
+	local stack = {node, newtable}
+	local tail = #stack
+	local head = 1
+	while head <= tail do
+		local source = stack[tail-1]
+		local dest = stack[tail]
+		tail = tail - 2
+		for k, v in pairs(source) do
+			if type(v) == "table" then
+				local nv = {}
+				dest[k] = nv
+				stack[tail + 1] = v
+				stack[tail + 2] = nv
+				tail = tail + 2
+			else
+				dest[k] = v
+			end
+		end
+	end
+	return newtable
+end
+
+
+table.simpleCopy = simpleCopy
+
 string.split = function(s, delim, number)
     local split = {}
     if delim:len() == 1 then

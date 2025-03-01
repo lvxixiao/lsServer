@@ -1,4 +1,9 @@
+local snax = require "skynet.snax"
+
 require "LuaExt"
+require "util.LogUtil"
+SnaxUtil = require "util.SnaxUtil"
+Common = require "Common"
 
 --获取保存SM的元表, server 不存在时，会自动 uniqueservice
 SM = setmetatable(

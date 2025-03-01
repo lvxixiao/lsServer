@@ -1,11 +1,21 @@
---[[
-    luaide  模板位置位于 Template/FunTemplate/NewFileTemplate.lua 其中 Template 为配置路径 与luaide.luaTemplatesDir
-    luaide.luaTemplatesDir 配置 https://www.showdoc.cc/web/#/luaide?page_id=713062580213505
-    author:{author}
-    time:2025-02-17 20:35:00
-]]
 local skynet = require "skynet"
-skynet.start(function()
-    print("Gamed启动")
-    
-end)
+require "skynet.manager"
+local GameGate = require "GameGate"
+local server = {}
+local connectIp = skynet.getenv("connectip")
+local connectPort = skynet.getenv("connectport")
+
+--login server disallow multi login, so login_handler never be reentry
+--call by login
+function server.login_handler(_, uid, secret)
+    LOG_INFO("login_handler", uid, secret)
+
+    -- todo: zf 检查是否在其他节点登录?
+
+    return connectIp, connectPort
+end
+
+
+skynet.register(SERVICE_NAME)
+
+GameGate.start(server)

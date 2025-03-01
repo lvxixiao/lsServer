@@ -4,7 +4,8 @@ local crypt = require "client.crypt"
 
 local loginip = "127.0.0.1"
 local loginport = 8001
-local token = "test:game1" --account:serverId
+local token = string.format("%s:%s", crypt.base64encode("test"),crypt.base64encode("game1")) --account:serverId
+local token1 = string.format("%s", crypt.base64encode("test")) --account:serverId
 
 local function writeline(fd, text)
 	socket.send(fd, text .. "\n")
@@ -71,7 +72,13 @@ function ClientLogic:login()
     assert(code == 200)
     socket.close(fd)
 
-    local subid = crypt.base64decode(string.sub(result, 5))
+    local ret = crypt.base64decode(string.sub(result, 5, #result))
+    print("ret", ret)
+    local connectip, connectport = ret:match "([^@]*)@(.*)"
+    connectip = crypt.base64decode(connectip)
+    connectport = crypt.base64decode(connectport)
 
-    print("login ok, subid=", subid)
+    print(string.format("login ok, connectip=%s, connectport=%s", connectip, connectport))
+
+    -- todo: zf 登录 game
 end
