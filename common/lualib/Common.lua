@@ -1,7 +1,14 @@
 local Common = {}
 
 function Common.getSelfNodeName()
-    -- todo: zf 返回节点名字
+    -- todo: zf 返回节点名字, master 节点会特殊点
+	local skynet = require "skynet"
+	local selfNodeName = skynet.getenv("clusternode")
+	if selfNodeName ~= "master" then
+		return selfNodeName .. skynet.getenv("serverid")
+	else
+		return selfNodeName
+	end
 end
 
 function Common.updateClusterConfig(clusterInfo)

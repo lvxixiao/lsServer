@@ -40,13 +40,15 @@ function server.login_handler(gameNode, uid, secret)
 	-- 检查 gameNode 是否存活
 
 	-- todo: zf 这里通知游服 secret 和 uid,同时返回游服的 ip、port
-	local connectIp, connectPort = cluster.call(gameNode, "Gamed", "login", uid, secret)
+	local connectIp, connectPort, subid = cluster.call(gameNode, "Gamed", "login", uid, secret)
 	local ret = string.format(
-		"%s@%s", 
+		"%s@%s@%s@%s", 
 		crypt.base64encode(connectIp), 
-		crypt.base64encode(connectPort)
+		crypt.base64encode(connectPort),
+		crypt.base64encode(gameNode),
+		crypt.base64encode(tostring(subid))
 	)
-	-- todo: zf 这个是否需要加上 subid
+	
 	LOG_INFO("server.login_handler", "notify game sucess", connectIp, connectPort, ret)
 	return ret
 end

@@ -1,11 +1,12 @@
 local rootpath = "../../../"
-local svr =  rootpath .. "common/lualib/?.lua;".."./?.lua;"
+local svr =  rootpath .. "common/lualib/?.lua;".."./?.lua;" .. rootpath .. "3rd/skynet/lualib/?.lua;"
 
 package.path = svr .. package.path
 package.cpath = rootpath .. "3rd/skynet/luaclib/?.so;" .. rootpath .. "common/luaclib/?.so;" .. package.cpath 
 
 require "LuaExt"
 
+local ClientCommon = require "logic.ClientCommon"
 local ClientLogic = require "logic.ClientLogic"
 require "logic.ClientLoginLogic"
 
@@ -23,6 +24,7 @@ local function reaLine()
 end
 
 local function Run( ... )
+    ClientCommon:initEvn()
     -- 实时交互模式
     while true do
         print("please input cmd:")

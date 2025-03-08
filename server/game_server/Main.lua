@@ -8,6 +8,7 @@ local function initLuaService(selfNodeName)
     cluster.open(selfNodeName)
 
     SM.MonitorSubscribe.req.connectMasterAndPush(selfNodeName)
+    SM.LoadSproto.req.load()
 end
 
 skynet.start(function() 
@@ -20,10 +21,9 @@ skynet.start(function()
     local Gamed = skynet.uniqueservice("Gamed")
     skynet.call(Gamed, "lua", "open", {
         maxclient = tonumber(skynet.getenv("maxclient")) or 1024,
-        port = tonumber(skynet.getenv("port")) or 8888,
+        port = tonumber(skynet.getenv("connectport")),
+        servername = selfNodeName
     })
 
     skynet.exit()
 end)
-
--- todo: zf 好像需要一个 master

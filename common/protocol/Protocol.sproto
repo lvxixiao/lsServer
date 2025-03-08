@@ -1,0 +1,36 @@
+##############################################################################################################################
+
+.package {
+    type 0 : integer
+    session 1 : integer
+}
+
+.ErrorMessage {
+    errorCode 0 : integer                               #error code define at ErrorCode.lua
+    errorMessage 1 : string                             #only for debug
+}
+
+.MessageContent {
+    networkMessage 0 : binary                           #sproto encode binary
+    error 1 : ErrorMessage
+}
+
+GateMessage 0 {
+    request {
+        content 0 : *MessageContent
+    }
+    response {
+        content 0 : *MessageContent
+    }
+}
+
+##############################################################################################################################
+
+Hello_Agent 1 {
+    request {
+        str     0:string
+    }
+    response {
+        str     0:string
+    }
+}

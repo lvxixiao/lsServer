@@ -1,30 +1,28 @@
 local ClientLogic = require "logic.ClientLogic"
+local ClientCommon = require "logic.ClientCommon"
 local socket = require "clientcore"
 local crypt = require "client.crypt"
 
 local loginip = "127.0.0.1"
 local loginport = 8001
-local token = string.format("%s:%s", crypt.base64encode("test"),crypt.base64encode("game1")) --account:serverId
-local token1 = string.format("%s", crypt.base64encode("test")) --account:serverId
-
-local function writeline(fd, text)
-	socket.send(fd, text .. "\n")
-end
-
-local function unpack_line(text)
-	local from = text:find("\n", 1, true)
-	if from then
-		return text:sub(1, from-1), text:sub(from+1)
-	end
-	return nil, text
-end
+local account = "test"
+local token = string.format("%s:%s", crypt.base64encode(account),crypt.base64encode("game1")) --account:serverId
+local token1 = string.format("%s", crypt.base64encode(account)) --account:serverId
 
 function ClientLogic:login()
-    print("loginnnnnnnnnn")
-    local fd = assert(socket.connect(loginip, loginport))
+    local function writeline(fd, text)
+        socket.send(fd, text .. "\n")
+    end
 
-    local last = ""
-    local function unpack_f(f)
+    local function unpack_line(text)
+        local from = text:find("\n", 1, true)
+        if from then
+            return text:sub(1, from-1), text:sub(from+1)
+        end
+        return nil, text
+    end
+
+    local function unpack_f(f, fd, last)
         local function try_recv(fd, last)
             local result
             result, last = f(last)
@@ -53,32 +51,79 @@ function ClientLogic:login()
         end
     end
 
-    local readline = unpack_f(unpack_line)
+    local fd = assert(socket.connect(loginip, loginport))
+    local readline = unpack_f(unpack_line, fd, "")
 
     local challenge = crypt.base64decode(readline())
-    print("recv challenge code:", challenge)
     local clientkey = crypt.randomkey()
     writeline(fd, crypt.base64encode(crypt.dhexchange(clientkey)))
     local secret = crypt.dhsecret(crypt.base64decode(readline()), clientkey)
-    print("recv secret key:", secret)
+    ClientCommon:setSecret(secret)
     local hmac = crypt.hmac64(challenge, secret)
     writeline(fd, crypt.base64encode(hmac))
     writeline(fd, crypt.base64encode(crypt.desencode(secret, token)))
 
     local result = readline()
-    print("recv result:", result)
     local code = tonumber(string.sub(result, 1, 3))
-    print(code)
     assert(code == 200)
     socket.close(fd)
 
     local ret = crypt.base64decode(string.sub(result, 5, #result))
-    print("ret", ret)
-    local connectip, connectport = ret:match "([^@]*)@(.*)"
+    local connectip, connectport,gameNode,subid = ret:match "([^@]*)@(.*)@(.*)@(.*)"
     connectip = crypt.base64decode(connectip)
     connectport = crypt.base64decode(connectport)
+    gameNode = crypt.base64decode(gameNode)
+    subid = crypt.base64decode(subid)
 
-    print(string.format("login ok, connectip=%s, connectport=%s", connectip, connectport))
+    print(string.format("login ok, connectip=%s, connectport=%s, gameNode=%s, subid=%s", connectip, connectport, gameNode, subid))
 
-    -- todo: zf 登录 game
+    local function unpack_package(text)
+        local size = #text
+        if size < 2 then
+            return nil, text
+        end
+        local s = text:byte(1) * 256 + text:byte(2)
+        if size < s+2 then
+            return nil, text
+        end
+    
+        return text:sub(3,2+s), text:sub(3+s)
+    end
+
+    --登录 game
+    local username = string.format("%s@%s@%s", 
+        crypt.base64encode(account),
+        crypt.base64encode(gameNode),
+        crypt.base64encode(subid)
+    )
+    print("connect game username", username, gameNode, subid)
+
+    fd = assert(socket.connect(connectip, connectport))
+    local index = 1
+    ClientCommon:sendpack(fd, string.pack(">s2",string.format("%s:%s:%s", 
+        crypt.base64encode(username),
+        tostring(index),
+        crypt.base64encode(crypt.hmac64(crypt.hashkey(tostring(index)), secret))
+        )), true)
+
+    local readpackage = unpack_f(unpack_package, fd, "")
+    code = tonumber(string.sub(result, 1, 3))
+    assert(code == 200, code)
+    print("game login ok")
+
+    local function send_package(fd, pack)
+        local package = string.pack(">s2", pack)
+        socket.send(fd, package)
+    end
+   
+   ClientCommon:setFd(fd)
+end
+
+function ClientLogic:hello()
+    local fd = ClientCommon:getFd()
+    ClientCommon:sendpack(fd, ClientCommon:makeSprotoPack(
+        ClientCommon:c2sRequest("Hello_Agent", {str = "hi agent"})
+    ))
+
+    -- todo: zf 接收返回值
 end
