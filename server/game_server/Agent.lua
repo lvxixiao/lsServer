@@ -1,6 +1,7 @@
 local skynet = require "skynet"
 local crypt = require "skynet.crypt"
 local sprotoloader = require "sprotoloader"
+local queue = require "skynet.queue"
 
 local _C2S_Request
 local _S2C_Push
@@ -14,6 +15,7 @@ function response.login(uid, subid, secret, username)
         uid = uid,
         subid = subid,
         secret = secret,
+		lock = queue(),
     }
 end
 
@@ -24,12 +26,32 @@ local function msgUnpack(msg)
 	msg = msg:sub(len+1)
 	LOG_DEBUG("msgUnpack", username, AgentNames[username].secret, type(msg))
 	local rawMsg = crypt.desdecode(AgentNames[username].secret, msg)
-	local type, protoname, message, responser =  _C2S_Request:dispatch(rawMsg)
-	if protoname == "GateMessage" then
-		-- todo: zf GateMessage 内容的循环处理
-		-- todo: zf 怎么回复客户端
-	else
-		LOG_DEBUG("msgUnpack", "protoname", protoname, table.dump(message))
+	local _, _, sprotoMsg, responser =  _C2S_Request:dispatch(rawMsg)
+	return sprotoMsg, responser, username
+end
+
+local function msgDispatch(sprotoMsg, responser, username)
+	local subName, subMsg, subResponser
+	local content = {}
+	for _, rawMsg in ipairs(sprotoMsg.content) do
+		_, subName, subMsg, subResponser = _C2S_Request:dispatch(rawMsg.message)
+		LOG_DEBUG("接收到消息", subName, table.dump(subMsg))
+		-- todo: zf 统一的处理消息函数
+		-- todo: zf 错误处理
+		local thisResp
+		local responseMsg = {str = "hi client"}
+		if responseMsg and subResponser then
+			thisResp = {message = subResponser(responseMsg)}
+		end
+
+		if thisResp then
+			content[#content + 1] = thisResp
+		end
+	end
+
+	if #content > 0 then
+		local ret = responser({content = content})
+		return crypt.desencode(AgentNames[username].secret, ret)
 	end
 end
 
@@ -40,8 +62,9 @@ function init()
 		id = skynet.PTYPE_CLIENT,
 		unpack = skynet.tostring,
 		dispatch = function (_, _, msg)
-            msgUnpack(msg)
-			skynet.ret("true")
+            local sprotoMsg, responser, username = msgUnpack(msg)
+			-- skynet.ret(msgDispatch(sprotoMsg, responser, username))
+			skynet.ret(AgentNames[username].lock(msgDispatch, sprotoMsg, responser, username))
 		end
 	}
 

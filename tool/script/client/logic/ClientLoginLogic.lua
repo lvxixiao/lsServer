@@ -9,6 +9,48 @@ local account = "test"
 local token = string.format("%s:%s", crypt.base64encode(account),crypt.base64encode("game1")) --account:serverId
 local token1 = string.format("%s", crypt.base64encode(account)) --account:serverId
 
+local function unpack_package(text)
+    local size = #text
+    if size < 2 then
+        return nil, text
+    end
+    local s = text:byte(1) * 256 + text:byte(2)
+    if size < s+2 then
+        return nil, text
+    end
+
+    return text:sub(3,2+s), text:sub(3+s)
+end
+
+local function unpack_f(f, fd, last)
+    local function try_recv(fd, last)
+        local result
+        result, last = f(last)
+        if result then
+            return result, last
+        end
+        local r = socket.recv(fd)
+        if not r then
+            return nil, last
+        end
+        if r == "" then
+            error "Server closed"
+        end
+        return f(last .. r)
+    end
+
+    return function()
+        while true do
+            local result
+            result, last = try_recv(fd, last)
+            if result then
+                return result
+            end
+            socket.usleep(100)
+        end
+    end
+end
+
 function ClientLogic:login()
     local function writeline(fd, text)
         socket.send(fd, text .. "\n")
@@ -22,51 +64,21 @@ function ClientLogic:login()
         return nil, text
     end
 
-    local function unpack_f(f, fd, last)
-        local function try_recv(fd, last)
-            local result
-            result, last = f(last)
-            if result then
-                return result, last
-            end
-            local r = socket.recv(fd)
-            if not r then
-                return nil, last
-            end
-            if r == "" then
-                error "Server closed"
-            end
-            return f(last .. r)
-        end
-    
-        return function()
-            while true do
-                local result
-                result, last = try_recv(fd, last)
-                if result then
-                    return result
-                end
-                socket.usleep(100)
-            end
-        end
-    end
-
-    local fd = assert(socket.connect(loginip, loginport))
-    local readline = unpack_f(unpack_line, fd, "")
-
-    local challenge = crypt.base64decode(readline())
+    local clientInfo = ClientCommon:connect(loginip, loginport)
+    local fd = clientInfo.fd
+    local challenge = crypt.base64decode(clientInfo:readline())
     local clientkey = crypt.randomkey()
     writeline(fd, crypt.base64encode(crypt.dhexchange(clientkey)))
-    local secret = crypt.dhsecret(crypt.base64decode(readline()), clientkey)
+    local secret = crypt.dhsecret(crypt.base64decode(clientInfo:readline()), clientkey)
     ClientCommon:setSecret(secret)
     local hmac = crypt.hmac64(challenge, secret)
     writeline(fd, crypt.base64encode(hmac))
     writeline(fd, crypt.base64encode(crypt.desencode(secret, token)))
 
-    local result = readline()
+    local result = clientInfo:readline()
     local code = tonumber(string.sub(result, 1, 3))
     assert(code == 200)
-    socket.close(fd)
+    ClientCommon:closeConnect()
 
     local ret = crypt.base64decode(string.sub(result, 5, #result))
     local connectip, connectport,gameNode,subid = ret:match "([^@]*)@(.*)@(.*)@(.*)"
@@ -77,19 +89,6 @@ function ClientLogic:login()
 
     print(string.format("login ok, connectip=%s, connectport=%s, gameNode=%s, subid=%s", connectip, connectport, gameNode, subid))
 
-    local function unpack_package(text)
-        local size = #text
-        if size < 2 then
-            return nil, text
-        end
-        local s = text:byte(1) * 256 + text:byte(2)
-        if size < s+2 then
-            return nil, text
-        end
-    
-        return text:sub(3,2+s), text:sub(3+s)
-    end
-
     --登录 game
     local username = string.format("%s@%s@%s", 
         crypt.base64encode(account),
@@ -98,16 +97,17 @@ function ClientLogic:login()
     )
     print("connect game username", username, gameNode, subid)
 
-    fd = assert(socket.connect(connectip, connectport))
+    clientInfo = ClientCommon:connect(connectip, connectport)
+    fd = clientInfo.fd
     local index = 1
-    ClientCommon:sendpack(fd, string.pack(">s2",string.format("%s:%s:%s", 
+    socket.send(fd, string.pack(">s2",string.format("%s:%s:%s", 
         crypt.base64encode(username),
         tostring(index),
         crypt.base64encode(crypt.hmac64(crypt.hashkey(tostring(index)), secret))
-        )), true)
+        )))
 
-    local readpackage = unpack_f(unpack_package, fd, "")
-    code = tonumber(string.sub(result, 1, 3))
+    local gresult = clientInfo:readpackage()
+    code = tonumber(string.sub(gresult, 1, 3))
     assert(code == 200, code)
     print("game login ok")
 
@@ -115,15 +115,13 @@ function ClientLogic:login()
         local package = string.pack(">s2", pack)
         socket.send(fd, package)
     end
-   
-   ClientCommon:setFd(fd)
 end
 
 function ClientLogic:hello()
-    local fd = ClientCommon:getFd()
-    ClientCommon:sendpack(fd, ClientCommon:makeSprotoPack(
+    local clientInfo = ClientCommon:getClientInfo()
+    ClientCommon:sendpack(clientInfo.fd, ClientCommon:makeSprotoPack(
         ClientCommon:c2sRequest("Hello_Agent", {str = "hi agent"})
     ))
 
-    -- todo: zf 接收返回值
+    ClientCommon:printRecvSproto()
 end

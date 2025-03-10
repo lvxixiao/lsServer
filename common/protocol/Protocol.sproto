@@ -11,7 +11,7 @@
 }
 
 .MessageContent {
-    networkMessage 0 : binary                           #sproto encode binary
+    message 0 : binary                           #sproto encode binary
     error 1 : ErrorMessage
 }
 
