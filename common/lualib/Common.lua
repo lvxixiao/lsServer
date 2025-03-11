@@ -33,4 +33,27 @@ function Common.updateClusterConfig(clusterInfo)
 	cluster.reload()
 end
 
+--comment 执行函数,进行超时判断
+--@param timeout integer 超时秒数
+--@param f function 执行的函数
+--@param ... any 参数列表
+--@return boolean true 为超时, 其他为非超时
+function Common.runTimeout(timeout, f, ...)
+	local co = coroutine.running()
+    local ret, data
+    local skynet = require "skynet"
+    local funcArg = { ... }
+    skynet.fork(function ()
+        ret, data = pcall(f, table.unpack(funcArg))
+        if co then skynet.wakeup(co) end
+    end)
+
+    skynet.sleep(timeout * 100)
+    co = nil -- prevent wakeup after call
+    if ret ~= nil then
+        return nil,data
+    end
+    return true
+end
+
 return Common

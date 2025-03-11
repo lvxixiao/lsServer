@@ -1,5 +1,5 @@
 local skynet = require "skynet"
-
+local Timer = {}
 local idMap = {}
 local idSeed = 0
 local function newId()
@@ -34,3 +34,4 @@ function Timer.runInterval(interval, f, ...)
 	skynet.timeout(interval, run)
 	return timerid
 end
+return Timer
