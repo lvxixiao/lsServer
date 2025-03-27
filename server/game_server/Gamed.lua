@@ -9,6 +9,7 @@ local connectPort = skynet.getenv("connectport")
 local inner_index = 0
 local username_map = {}
 local servername
+local logiccenterNodeName = skynet.getenv("logiccenternode")
 
 local agent_id = 0
 local uid_agent = {}
@@ -36,6 +37,10 @@ function server.login_handler(uid, secret)
     -- todo: zf 怎么阻止重复登录?
     -- todo: zf 这个节点如果不限制区服要怎么做?
     -- todo: zf 这个要保存???
+    -- todo: zf 借助 redis, 登录时 uid 记录状态
+
+    -- todo: zf nodename
+    SnaxUtil.remoteCall(logiccenterNodeName, "AccountMgr", "checkRepetitionLogin", uid, servername, username)
 
     local agent
     if uid_agent[uid] then
@@ -64,13 +69,24 @@ function server.logout_handler(fd, username, uid)
 
 end
 
+-- call by self (when socket disconnect)
+function server.disconnect_handler(fd, username)
+	local u = username_map[username]
+	if u then
+		u.agent.req.afk( skynet.self(), fd, username )
+	end
+end
+
+function server.kick_handler(username)
+    -- todo: zf 
+end
+
 -- call by self (when recv a request from client)
 function server.request_handler(username, msg)
 	local u = username_map[username]
 	msg = string.pack('<d', username:len()) .. username .. msg
 	return skynet.tostring(skynet.rawcall(u.agent.handle, "client", msg))
 end
-
 
 function server.register_handler(name)
     servername = name

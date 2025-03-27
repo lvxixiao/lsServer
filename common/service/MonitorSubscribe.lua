@@ -15,6 +15,7 @@ local function clusterHold()
     if timeout or not ret then
         -- 重连
         snax.self().req.connectMasterAndPush(selfNodeName, true)
+        -- 连不上的时候把所有玩家踢下线??? todo: zf
     end
 end
 

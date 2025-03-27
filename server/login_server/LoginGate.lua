@@ -124,7 +124,8 @@ local function accept(conf, s, fd, addr)
 		end
 		error(server)
 	end
-
+	-- todo: zf 要限制不能同时验证吗???
+	-- todo: zf
 	if not conf.multilogin then
 		if user_login[uid] then
 			write("response 406", fd, "406 Not Acceptable\n")

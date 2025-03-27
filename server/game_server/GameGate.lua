@@ -123,6 +123,7 @@ function server.start(conf)
     local CMD = {
         login = assert(conf.login_handler),
         logout = assert(conf.logout_handler),
+		kick = assert(conf.kick_handler)
     }
 
     function handler.connect(fd, addr)

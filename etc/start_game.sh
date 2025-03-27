@@ -1,7 +1,7 @@
 #自身节点信息
 export CLUSTER_NODE="game"
 export CLUSTER_IP="127.0.0.1"
-export CLUSTER_PORT="57002"
+export CLUSTER_PORT="57003"
 
 #master节点信息
 export MASTER_NODE_NAME="master"

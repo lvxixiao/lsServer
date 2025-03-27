@@ -19,6 +19,11 @@ function response.login(uid, subid, secret, username)
     }
 end
 
+--call by gated
+function response.afk(_, fd, username)
+	-- todo: zf 
+end
+
 local function msgUnpack(msg)
     local len = string.unpack('<d', msg)
 	msg = msg:sub(9)

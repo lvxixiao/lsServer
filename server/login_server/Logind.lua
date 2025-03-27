@@ -6,7 +6,6 @@ local cluster = require "skynet.cluster"
 local server = {
 	host = "0.0.0.0",
 	port = 8001,
-	multilogin = false,	-- disallow multilogin
 	name = "Logind",
     instance = 16
 }
